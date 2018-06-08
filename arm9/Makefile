@@ -30,7 +30,7 @@ CFLAGS	:=	-g -Wall -O2 -nostdlib -nodefaultlibs \
 			-ffast-math \
 			$(ARCH) 
 
-CFLAGS	+=	$(INCLUDE) -DARM9
+CFLAGS	+=	$(INCLUDE) -DARM9 -DARM7_DLDI
 
 ifdef ISNITRODEBUG
 	CFLAGS	+=  -DISNITRODEBUG

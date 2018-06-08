@@ -1,6 +1,7 @@
 #---------------------------------------------------------------------------------
 .SUFFIXES:
 #---------------------------------------------------------------------------------
+
 ifeq ($(strip $(DEVKITARM)),)
 $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
 endif
@@ -8,35 +9,38 @@ endif
 include $(DEVKITARM)/ds_rules
 
 #---------------------------------------------------------------------------------
+# TARGET is the name of the output
 # BUILD is the directory where object files & intermediate files will be placed
 # SOURCES is a list of directories containing source code
-# INCLUDES is a list of directories containing extra header files
-# DATA is a list of directories containing binary files
-# all directories are relative to this makefile
+# DATA is a list of directories containing data files
+# INCLUDES is a list of directories containing header files
+# SPECS is the directory containing the important build and link files
 #---------------------------------------------------------------------------------
+export TARGET		:=	dsisd
 BUILD		:=	build
-SOURCES 	:=	source
-INCLUDES	:=	include source build
-DATA		:=
- 
+SOURCES		:=	source
+DATA		:=	data
+INCLUDES	:=	include
+
+
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-mthumb-interwork -marm
+ARCH	:=	-mthumb-interwork
 
-CFLAGS	:=	-g -Wall -O3\
-		-mcpu=arm7tdmi -mtune=arm7tdmi -fomit-frame-pointer\
-		-ffast-math \
-		$(ARCH)
+CFLAGS	:=	-g -Wall -O2\
+			-mcpu=arm7tdmi -mtune=arm7tdmi -fomit-frame-pointer\
+			-ffast-math \
+			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM7 -DARM7_DLDI
-CXXFLAGS	:=	$(CFLAGS) -fno-exceptions -fno-rtti
+CFLAGS	+=	$(INCLUDE) -DARM9 -fPIC -std=gnu99
 
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-specs=../ds_arm7_gbarunner.specs -g $(ARCH) -Wl,-Map,$(notdir $*).map
+LDFLAGS	=	-nostartfiles -nostdlib -T ../dldi.ld -g $(ARCH) -Wl,-Map,$(TARGET).map
 
-LIBS	:=	-lnds7
+LIBS	:= -lnds9
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -52,24 +56,17 @@ LIBDIRS	:=	$(LIBNDS)
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
  
-export ARM7ELF	:=	$(CURDIR)/$(TARGET).elf
+export OUTPUT	:=	$(CURDIR)/$(TARGET)
+
+export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
+			$(foreach dir,$(DATA),$(CURDIR)/$(dir))
+
 export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
-export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir))
- 
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
- 
-export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
-			$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
- 
-export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
-			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
-			-I$(CURDIR)/$(BUILD)
- 
-export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
@@ -85,17 +82,28 @@ else
 endif
 #---------------------------------------------------------------------------------
 
-.PHONY: $(BUILD) clean
+export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
+			$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
+
+export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
+			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
+			-I$(CURDIR)/$(BUILD)
+
+export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+
+.PHONY: $(BUILD) clean all
  
 #---------------------------------------------------------------------------------
+all: $(BUILD)
+
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
  
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) *.elf
+	@rm -fr $(BUILD) $(TARGET).dldi $(TARGET).elf
  
  
 #---------------------------------------------------------------------------------
@@ -106,20 +114,18 @@ DEPENDS	:=	$(OFILES:.o=.d)
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-$(ARM7ELF)	:	$(OFILES)
-	@echo linking $(notdir $@)
-	@$(LD)  $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
+$(OUTPUT).dldi	:	$(OUTPUT).elf
+$(OUTPUT).elf	:	$(OFILES)
 
 
 #---------------------------------------------------------------------------------
-# you need a rule like this for each extension you use as binary data 
-#---------------------------------------------------------------------------------
-%.bin.o	:	%.bin
-#---------------------------------------------------------------------------------
-	@echo $(notdir $<)
-	@$(bin2o)
+%.dldi: %.elf
+	@$(OBJCOPY) -O binary $< $@
+	@echo built ... $(notdir $@)
+ 
 
 -include $(DEPENDS)
+
  
 #---------------------------------------------------------------------------------------
 endif
