@@ -24,7 +24,8 @@ $(TARGET).nds	:	arm7/$(TARGET).elf arm9/$(TARGET).elf dldi/dsisd.dldi
 			-b icon.bmp "GBARUNNER2;GBA hypervisor for NDS;made by Gericom" \
 			-g KGBE 01 "GBARUNNER2" -z 80040000 -u 00030004 -a 00000138 -p 00000001 
 	dlditool dldi/dsisd.dldi $(TARGET).nds
-	cp $(TARGET).nds title/00030004/4b474245/content/00000000.app 
+	cp $(TARGET).nds title/00030004/4b474245/content/00000000.app
+	python patch_ndsheader_dsiware.py $(CURDIR)/$(TARGET).nds 
 
 #---------------------------------------------------------------------------------
 arm7/$(TARGET).elf:
