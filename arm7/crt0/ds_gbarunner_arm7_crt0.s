@@ -11,6 +11,20 @@ _start:
 	mov	r1, #0
 	str	r1, [r0, #0x208]
 
+
+    @ dsi registers configuration
+    ldr r0, =0x4004000  @ REG_SCFG_ROM
+	ldr	r1, =0x703
+    str	r1, [r0]        @ REG_SCFG_ROM
+    
+	ldr	r1, =0x0181
+    str	r1, [r0, #0x4]  @ REG_SCFG_CLK
+    
+	ldr	r1, =0x93A40000
+    str	r1, [r0, #0x8]  @ REG_SCFG_EXT 
+    @ dsi registers configuration 
+       
+
 	mov	r0, #0x12		@ Switch to IRQ Mode
 	msr	cpsr, r0
 	ldr	sp, =__sp_irq		@ Set IRQ stack
